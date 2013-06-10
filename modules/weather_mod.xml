@@ -1,0 +1,344 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ebot_module>
+	<info name='weather' author='Thom Michelbrink' version='1.0'></info>
+	<descr>Report local weather conditions</descr>
+	<svn><![CDATA[ $Id: weather_mod.xml 37 2011-02-15 20:42:46Z tmichelbrink $ ]]></svn>
+	<triggers>
+		<weather>
+<![CDATA[
+$loc = trim($this->message->params);
+if($loc == '') {
+	$qry = "SELECT * FROM data WHERE data_type = 'weather_alias' AND data_text2 = '{$this->message->nick}'";
+	if($row = $this->db->getRecord($qry)) {
+		$loc = $row['data_text'];
+	} else {
+		$this->reply("Usage: ".$this->config->trigger."weather [<location> | <alias>], locations are found at http://weather.noaa.gov\n".$this->config->trigger."weatheralias to add an alias");
+		return false;
+	}
+}
+
+$qry = "SELECT * FROM data WHERE data_type = 'weather_alias' AND data_text2 = '{$loc}'";
+if($row = $this->db->getRecord($qry)) {
+	$loc = trim($row['data_text']);
+}
+$loc = strtoupper($loc);
+
+$html = $this->cache_get('weather', $loc, 15); 
+if(!$html) {
+	$url = "http://weather.noaa.gov/weather/current/{$loc}.html";
+	$this->console("url = $url", 'module');
+	$html = $this->gethtml($url, '', '', 'all');
+	$this->cache_set('weather', $loc, $html);
+} else {
+	$this->console("Retrieved weather: $loc from cache", 'module');
+}
+
+preg_match("#Current Weather Conditions:(.*?)\<\/b\>#is", $html, $matches);
+$where = trim(strip_tags(clean($matches, 1)));
+
+preg_match("#\<OPTION SELECTED\>(.*?)\<OPTION\>#is", $html, $matches);
+$updated = strip_tags(clean($matches, 1));
+
+preg_match("# Temperature (.*?)\<\/TR\>#is", $html, $matches);
+$temps = trim(strip_tags(clean($matches, 1)));
+
+preg_match("# Weather \<\/FONT\>(.*?)\<\/TR\>#is", $html, $matches);
+$weather = str_replace("<BR>", "; ", clean($matches, 1));
+$weather = trim(strip_tags($weather));
+if($weather != "") {
+	$temps .= " [$weather]";
+}
+
+preg_match("#Sky conditions (.*?)</TR>#is", $html, $matches);
+$conditions = trim(strip_tags(clean($matches, 1)));
+
+preg_match("#Wind (.*?)</TR>#is", $html, $matches);
+$wind = trim(strip_tags(clean($matches, 1)));
+$wind = trim(preg_replace("#\(.*?\)#", "", $wind));
+
+preg_match("#Visibility (.*?)</TR>#is", $html, $matches);
+$vis = trim(strip_tags(clean($matches, 1)));
+
+preg_match("#Humidity (.*?)</TR>#is", $html, $matches);
+$hum = trim(strip_tags(clean($matches, 1)));
+
+
+if($where == "")
+{
+	$this->reply("No data found for location [{$loc}], locations are found at http://weather.noaa.gov");
+	return false;
+}
+$this->reply("Temp: {$temps}, Humidity: {$hum}, Cond: $conditions, Wind: {$wind}, Vis: {$vis}, at {$where} [{$loc}], Updated: {$updated}");
+]]>
+		</weather>
+	
+		<weatheralias>
+<![CDATA[
+$showusage = '
+$this->reply("Usage:\n".$this->config->trigger."weatheralias add <alias> <location>\n".$this->config->trigger."weatheralias delete <alias> (admin only)\nLocation codes are found at: http://weather.noaa.gov/");
+';
+$parms = explode(" ", trim($this->message->params));
+if(count($parms) < 2) {
+	eval($showusage);
+	return FALSE;
+}
+$cmd = trim($parms[0]);	//add
+$loc = trim($parms[1]);  // McFly
+$locid = trim($parms[2]); //15222
+
+switch($cmd) {
+	case "add" :
+
+		if(count($parms) < 3) {
+			eval($showusage);
+			return FALSE;
+		}
+
+		$qry = "SELECT * FROM data WHERE data_type = 'weather_alias' AND data_generic2 = '{$loc}'";
+		if($row = $this->db->getRecord($qry)) {
+			$this->reply("Weather alias [{$loc}] already exists as: ".$row['data_text']);
+			return FALSE;
+		} else {
+			$this->message->params = $locid;
+			$this->dataInsert('weather_alias', $locid, $loc);
+			$this->reply("Weather alias [{$loc}] added as: '{$locid}'");
+			return TRUE;
+		}
+		break;
+
+	case 'delete' :
+
+		if(count($parms) < 2) {
+			eval($showusage);
+			return FALSE;
+		}
+		if(!$this->checkPriv('admin', $this->message->hostmask)) {
+			$this->reply("Only admin is allowed to delete aliases");
+			return FALSE;
+		} else {
+			if($this->db_Query("DELETE FROM data WHERE data_type = 'weather_alias' AND data_generic2 = '{$loc}'")) {
+				$this->reply("Alias [{$loc}] deleted");
+				return TRUE;
+			} else {
+				$this->reply("Alias [{$loc}] was not found.");
+				return FALSE;
+			}
+		}
+		break;
+}
+]]>
+		</weatheralias>
+		
+		<alllines>
+<![CDATA[
+	$lines = preg_split("#\n#", $this->message->raw);
+	foreach($lines as $line) {
+		if(preg_match("#^:.*? 352 (.*)#", $line, $matches)) {
+			$word = explode(" ", trim($matches[1]));
+			if(isset($word[5]) && isset($word[1])) {
+				$nick = $word[5];
+				$this->static['weather_mod']['who'][$word[1]][] = $nick;
+			}
+		}
+		
+		if(preg_match("#^:.*? 315 (.*)#", $line, $matches)) {
+			$this->console("WHO completed", 'module');
+					
+			$this->static['weather_mod']['who']['#ebot'][] = 'streaky';
+			$this->static['weather_mod']['who']['#ebot'][] = 'stratagem';
+			$this->static['weather_mod']['who']['#ebot'][] = 'wrtpeeps';
+
+			$this->static['weather_mod']['who']['#mtest'][] = 'streaky';
+			$this->static['weather_mod']['who']['#mtest'][] = 'stratagem';
+			$this->static['weather_mod']['who']['#mtest'][] = 'wrtpeeps';
+
+			$word = explode(" ", trim($matches[1]));
+			if(isset($word[1])) {
+				$chan = $word[1];
+				if($this->static['weather_mod']['wrank'][$chan]['on'] == true) {
+					$parm = $this->static['weather_mod']['wrank'][$chan]['parms'];
+					
+					$type = $parm[0];
+					$sort = $parm[1];
+					$num  = $parm[2];
+					unset($parm);
+
+					foreach($this->static['weather_mod']['who'][$chan] as $nick) {
+						$qry = "SELECT * FROM data WHERE data_type = 'weather_alias' AND data_text2 = '{$nick}'";
+						if($row = $this->db->getRecord($qry)) {
+							$loc = trim($row['data_text']);
+							$cond = array();
+							
+							$url = "http://weather.noaa.gov/weather/current/{$loc}.html";
+
+							$html = $this->cache_get('weather', $loc, 15);
+							if(!$html) {
+								$url = "http://weather.noaa.gov/weather/current/{$loc}.html";
+								$this->console("url = $url", 'module');
+
+								$html = $this->gethtml($url, '', '', 'all');
+								$this->cache_set('weather', $loc, $html);
+							} else {
+								$this->console("Retrieved weather: $loc from cache", 'module');
+							}
+
+							preg_match("# Temperature (.*?)\<\/TR\>#is", $html, $matches);
+							$cond['temps'] = trim(strip_tags($matches[1]));
+							if(preg_match("#(.*) F.*\((.*) C\)#is", $cond['temps'], $matches)) {
+								$cond['temp_f'] = trim(strip_tags($matches[1]));
+								$cond['t'] = trim(strip_tags($matches[1]));
+								$cond['temp_c'] = trim(strip_tags($matches[2]));
+							}
+							
+							preg_match("#Wind (.*?)</TR>#is", $html, $matches);
+							$cond['w'] = trim(strip_tags($matches[1]));
+							preg_match("#.* (.*? MPH)#is", $cond['w'], $matches);
+							$cond['w'] = $matches[1];
+							
+							preg_match("#Visibility (.*?)</TR>#is", $html, $matches);
+							$cond['vis'] = trim(strip_tags($matches[1]));
+							
+							preg_match("#Humidity (.*?)</TR>#is", $html, $matches);
+							$cond['h'] = trim(strip_tags($matches[1]));
+		
+							$all_res[$nick] = $cond;
+
+							$results[] = $cond[$type]."|".$nick;
+							
+						}
+					}
+					natsort($results);
+
+					if($sort == 'h') {
+						$results = array_reverse($results);
+					}
+					
+					$o = array();
+					switch($type) {
+						case 't' :
+							$o[0] = 'temps'; $o[1] = 'h'; $o[2] = 'w';
+							$len = 18;
+							break;
+						
+						case 'w' :
+							$o[0] = 'w'; $o[1] = 'temps'; $o[2] = 'h';
+							$len = 8;
+							break;
+
+						case 'h' :
+							$o[0] = 'h'; $o[1] = 'temps'; $o[2] = 'w';
+							$len = 5;
+							break;
+					}
+
+					$i = 1;
+					foreach($results as $k => $v) {
+						list($val, $nick) = explode("|", $v);
+						$output[$i] = sprintf("%-14s => %-{$len}s  [ %s | %s ]", $nick, $all_res[$nick][$o[0]], $all_res[$nick][$o[1]], $all_res[$nick][$o[2]]);
+						$i++;
+					}
+					$this->console(print_r($output, true), 'module');
+					
+					$reply_str = "";
+					for($i=1; $i<=$num; $i++) {
+						if(isset($output[$i])) {
+							$reply_str .= $output[$i]."\n";
+						}
+					}
+					$this->reply($reply_str, $chan);
+					unset($num);
+					unset($type);
+					unset($sort);
+					unset($url);
+					unset($reply_str);
+					unset($output);
+					unset($nick);
+				}
+			}
+		}
+	}
+]]>			
+		</alllines>
+		
+		<wrank>
+<![CDATA[
+	$parm = explode(' ', strtolower(trim($this->message->params)));
+	$tmp['show_usage'] = false;
+
+	$parm[0] = (isset($parm[0]) && $parm[0] ? substr($parm[0], 0, 1) : 't');
+	$parm[1] = (isset($parm[1]) ? substr($parm[1], 0, 1) : 'h');
+	$parm[2] = (isset($parm[2]) ? substr($parm[2], 0, 1) : '3');
+	
+	$tmp['types'] = array('t', 'h', 'w');
+	if(!in_array($parm[0], $tmp['types'])) {
+		$tmp['show_usage'] = true;
+	}
+	if($parm[1] != 'h' && $parm[1] != 'l') {
+		$tmp['show_usage'] = true;
+	}
+	
+	if($parm[2] < 1) { $parm[2] = 1; }
+	if($parm[2] > 5) { $parm[2] = 5; }
+
+	if(!$tmp['show_usage']) {
+		$chan = $this->message->channel;
+		$this->static['weather_mod']['who'][$chan] = array();
+		$this->static['weather_mod']['wrank'][$chan]['on'] = true;
+		$this->static['weather_mod']['wrank'][$chan]['parms'] = $parm;
+		$cmd = "WHO {$chan}";
+		$this->console($cmd, 'module');
+		$this->send($cmd, EbotServer::MSGTYPE_CMD);
+	} else {
+		$this->reply("Usage: ".$this->config->trigger."wrank [t(emp)|h(umid)|w(ind)] [h(igh)|l(ow)] [1-5]");
+	}
+	unset($tmp);
+	unset($parm);
+]]>			
+		</wrank>
+		<gweather>
+<![CDATA[
+$loc = str_replace(' ', '+', trim($this->message->params));
+if($loc == '') {
+	$this->reply("You must supply a location");
+	return;
+}
+
+$url = "http://www.google.com/ig/api?weather=".$loc;
+//echo $url."\n";
+$xml = simplexml_load_file($url);
+if(!isset($xml->weather->current_conditions)) {
+	$this->reply("Unable to get weather data for: [{$loc}]");
+	return;
+} else {
+	$for = (array)$xml->weather->forecast_information;
+	print_r($xml);
+	$_city = (array)$for['city'];
+	$_dt = (array)$for['current_date_time'];
+
+	$dt = $_dt['@attributes']['data'];
+	$city = $_city['@attributes']['data'];
+	
+	$cur = (array)$xml->weather->current_conditions;
+	$_temp_f = (array)$cur['temp_f'];	
+	$_temp_c = (array)$cur['temp_c'];
+	$_hum = (array)$cur['humidity'];
+	$_cond = (array)$cur['condition'];
+	$_wind = (array)$cur['wind_condition'];
+		
+	$temps = $_temp_f['@attributes']['data'].'F / '.$_temp_c['@attributes']['data'].'C';
+	$hum = $_hum['@attributes']['data'];
+	$conditions = $_cond['@attributes']['data'];
+	$wind = $_wind['@attributes']['data'];
+	
+//	$this->reply("Temp: {$temps}");
+	$this->reply("Temp: {$temps}, {$hum}, Cond: {$conditions}, {$wind}, at {$city}, Updated: {$dt}");
+
+}
+
+
+//print_r($xml);
+]]>
+		</gweather>			
+	</triggers>
+</ebot_module>
+

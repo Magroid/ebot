@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ebot_module>
+  <info name="fml" author="Joshua St. Marie" version="1.0"></info>
+  <descr>Displays a random FML quote from FMyLife.com</descr>
+  <priv></priv>
+  <svn><![CDATA[ $Id: fml_mod.xml 31 2011-01-15 20:23:50Z timhortons $ ]]></svn>
+  <triggers>
+    <fml>
+<![CDATA[
+// Grab a random FML quote from FMyLife.com
+$fml_source_url = "http://www.fmylife.com/random/";
+$fml_data = null;
+$err_msg = "Experienced a problem fetching a FML. FML.";
+if(ini_get('allow_url_fopen') == true) {
+  $fml_data = file_get_contents($fml_source_url);
+} else {
+  // We dont want to send the channel such a specific message.
+  //$this->reply("Cannot load {$fml_source_url} due to php ini setting.");
+  $this->reply($err_msg);
+  // Send a message to console with more details about why it didnt go through.
+  print_r("Cannot load {$fml_source_url} due to php allow_url_fopen being off.");
+}
+$useLegacy = true;
+
+/** New fetching technique using DomDocument/Tidy/XPath */
+if(($fml_data != null) && class_exists("tidy", false) && class_exists("DOMXpath", false) && class_exists("DOMDocument", false)) {
+  $useLegacy = false;
+
+  libxml_use_internal_errors(true);
+  libxml_disable_entity_loader(false);
+
+  try {
+    $tidy = new tidy();
+    $test = $tidy->repairString($fml_data);
+    $doctest = new DOMDocument();
+    $doctest->loadXML($test);
+
+    $fmlxpath = new DOMXPath($doctest);
+    $fmlxpath->registerNamespace("xhtml", "http://www.w3.org/1999/xhtml");
+
+    $posts = $fmlxpath->query("//xhtml:div[@id=\"wrapper\"]//xhtml:div[@class=\"post\"][1]//xhtml:p");
+    if($posts->length > 0) {
+        $this->reply(str_replace("\n", " ", $posts->item(0)->nodeValue));
+        $this->reply(str_replace("\n", " ", $posts->item(1)->nodeValue));
+        $this->reply(str_replace("\n", " ", $posts->item(2)->nodeValue));
+    } else {
+      $this->reply($err_msg);
+    }
+  } catch(Exception $e) {
+    $this->reply($err_msg);
+    print_r($e);
+  }
+} else {
+  /** Legacy code, hard string crunching to retrieve a FML */
+  if(($fml_data != null) && ($useLegacy == true)) {
+    preg_match("/(<div\sclass=\"post\".*>)(\w.*)(<\/div>)/ismU", $fml_data, $matches);
+    $quote = strip_tags(html_entity_decode($matches[2]));
+    if(strlen($quote) > 0 && strlen($quote) < 512) {
+      $this->reply("Retrieving a random FML...");
+      $this->reply(substr($quote, 0, strpos($quote, "#")).".");
+    } else {
+      $this->reply($err_msg);
+    }
+  }
+}
+]]>
+    </fml>
+  </triggers>
+</ebot_module>

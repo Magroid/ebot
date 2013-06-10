@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ebot_module>
+	<info name='Homer' author='Thom Michelbrink' version='1.0'></info>
+	<descr>Show random homer quote</descr>
+	<svn><![CDATA[ $Id: homer_mod.xml 22 2010-11-29 00:34:03Z tmichelbrink $ ]]></svn>
+	<triggers>
+		<homer>
+<![CDATA[
+$fname = getcwd().'/modules/text/homer.txt';
+if($line = $this->getLine($fname)) {
+	$this->reply(trim($line));
+} else {
+	$this->reply('Error');
+}
+]]>
+		</homer>
+	</triggers>
+</ebot_module>

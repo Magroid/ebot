@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ebot_module>
+	<info name='ebot' author='Thom Michelbrink' version='1.0'></info>
+	<descr>Perform ebot admin function</descr>
+	<priv>admin</priv>
+	<svn><![CDATA[ $Id: ebot_mod.xml 23 2010-11-29 01:15:04Z tmichelbrink $ ]]></svn>
+	<triggers>
+		<join>
+<![CDATA[
+// Tell ebot to join a specific channel
+$channel = trim(clean($this->message->parm, 0));
+if(!$channel) {
+	$this->reply('You must specify a channel for me to join');
+	return;
+}
+if('#' != substr($channel, 0, 1)) {
+	$channel = '#'.$channel;
+}
+$this->console("Joining $channel", 'module');
+$this->send('JOIN '.$channel, ebotServer::MSGTYPE_CMD);
+]]>
+		</join>
+		
+		<part>
+<![CDATA[
+// Tell ebot to part a channel
+// part #chan part_message
+$msg="Bye";
+$chan = clean($this->message->parm, 0) ? clean($this->message->parm, 0) : $this->message->returnPath; 
+if(count($this->message->parm) > 1) {
+	$tmp = $this->message->parm;
+	unset($tmp[0]);
+	$msg = implode(' ', $tmp);
+} else {
+	$msg = 'Bye';
+}
+$chan = trim($chan);
+$msg = trim($msg);
+
+if('#' != substr($chan, 0, 1)) {
+	$chan = '#'.$chan;
+}
+$chan .= ' :'.$msg;
+$this->send('PART '.$chan, ebotServer::MSGTYPE_CMD);
+]]>
+		</part>			
+
+		<reloadconfig>
+<![CDATA[
+$this->loadConfig();
+]]>
+		</reloadconfig>			
+
+
+		<sleep description="Put bot to sleep or wake bot up - Applies to current channel">
+<![CDATA[
+if('#' == substr($this->message->returnPath, 0, 1)) {
+	$sleeping = $this->isSleeping($this->message->returnPath);
+	$this->console('Sleeping = '.$sleeping."\n", 'debug');
+	$parm = $this->message->parm[0];
+	if('status' == $parm) {
+		if(false == $sleeping) {
+			$this->reply('I am not sleeping');
+			return true;
+		}
+		if(true === $sleeping) {
+			$this->reply("Shhh, I am trying to sleep!");
+			return true;
+		}
+		if(is_numeric($sleeping)) {
+			$minsleft = (int)(($sleeping - time()) / 60);
+			$this->reply("Leave me alone, I still have $minsleft minutes of sleep remaining");
+			return true;
+		}
+	}
+	if('' == $parm) {
+		if($sleeping === true || is_numeric($sleeping)) {
+			$this->setSleeping($this->message->returnPath, false);
+			$this->reply("I am now awake");
+			return true;
+		}
+		$sleeping === false;
+		$this->setSleeping($this->message->returnPath, true);
+		$this->reply('Goodnight');
+	} else {
+		if(is_numeric($parm)) {
+			$this->setSleeping($this->message->returnPath, $parm);
+			$this->reply("Sleeping for ".intval($parm)." minutes.");
+			return true;
+		}
+	}
+}			
+]]>
+		</sleep>
+
+		<setowner description="Set hostmask in for owner in config table, if password matches">
+<![CDATA[
+if($this->inChannel()) {
+	$this->reply("Please don't use that command in a channel!");
+	return true;
+}
+if($this->checkPriv('admin') && $this->message->parm[0] == $this->config->owner_pw) {
+	$this->setConfig('owner', $this->message->hostmask);
+	$this->reply("Owner hostmask set to {$this->message->hostmask}");
+}
+]]>
+		</setowner>
+
+		<setconfig>
+<![CDATA[
+if($this->checkPriv('admin')) {
+	$name = clean($this->message->parm, 0);
+	$value = clean($this->message->parm, 1);
+	if(count($this->message->parm) == 1) {
+		if($this->config->$name !== null) {
+			$this->reply("$name is current set at: {$this->config->$name}");
+			return true;
+		} else {
+			$this->reply("No such config option as $name");
+			return true;
+		}
+		
+	}
+	if(count($this->message->parm) == 2) {
+		$oldValue = '';
+		if($this->config->$name !== null) {
+			$oldValue = $this->config->$name;
+			$this->setConfig($name, $value);
+			$this->reply("Config option $name changed from [$oldValue] to [{$this->config->$name}]");
+		} else {
+			$this->setConfig($name, $value);
+			$this->reply("$name created with value of: {$this->config->$name}");
+			return true;
+		}
+	}
+}
+]]>
+		</setconfig>
+
+
+	</triggers>
+</ebot_module>

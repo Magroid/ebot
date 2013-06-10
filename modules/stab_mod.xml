@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ebot_module>
+	<info name='time' author='Thom Michelbrink' version='1.0'></info>
+	<descr>Various stab actions</descr>
+	<svn><![CDATA[ $Id: stab_mod.xml 29 2011-01-13 17:10:43Z tmichelbrink $ ]]></svn>
+	<triggers>
+		<stab>
+<![CDATA[
+$target = trim($this->message->params);
+if($target == '') { return; }
+
+if($this->inClass('admin', $target)) {
+	$q = $this->db->getRandomRecord('stabadmin');
+	$stabtext = str_replace("%4", $this->message->nick, $q['data_text']);
+	$this->reply($stabtext, '', EbotServer::MSGTYPE_ACTION);
+	return true;
+}
+
+if($target == $this->config->botnick) {
+	$this->reply("Do you think I'm stupid?");
+	$this->reply("stabs a pencil in ".$this->message->nick."'s ear", '', EbotServer::MSGTYPE_ACTION);
+	return true;
+}
+
+if($target == 'herself' || $target == 'yourself') {
+	$this->reply("Stab myself? HA!");
+	$this->reply("shoves a rabid shark down ".$this->message->nick."'s pants", '', EbotServer::MSGTYPE_ACTION);
+	return true;
+}
+
+if($target == 'everyone' || $target == 'channel' || $target == $this->message->channel) {
+	$q = $this->db->getRandomRecord('staball');
+	$stabtext = str_replace("%4", $this->message->nick, $q['data_text']);
+	$this->reply($stabtext, '', EbotServer::MSGTYPE_ACTION);
+	return true;
+}
+
+if($q = $this->db->getRandomRecord('stab')) {
+	$stabtext = $q['data_text'];
+	
+	if(!$target || $target == 'me') {
+		$stabtext = stripslashes(str_replace("%1", $this->message->nick, $stabtext));
+	} else {
+		$stabtext = stripslashes(str_replace("%1", $target, $stabtext));
+	}
+	$stabtext = str_replace("%2", rand(0,999), $stabtext);
+	$stabtext = str_replace("%3", rand(0,999), $stabtext);
+	$stabtext = str_replace("%4", $this->message->params, $stabtext);
+	$this->reply($stabtext, '', EbotServer::MSGTYPE_ACTION);
+}
+]]>
+		</stab>
+
+	</triggers>
+</ebot_module>

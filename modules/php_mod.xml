@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ebot_module>
+	<info name='php' author='Thom Michelbrink' version='1.0'></info>
+	<descr>PHP help</descr>
+	<svn><![CDATA[ $Id: php_mod.xml 22 2010-11-29 00:34:03Z tmichelbrink $ ]]></svn>
+	<triggers>
+		<php>
+<![CDATA[
+$funcname = strtolower(trim($this->message->params));
+$urlname = str_replace('_', '-', $funcname);
+$url = "http://uk.php.net/manual/en/function.{$urlname}.php";
+
+echo "url = $url\n";
+$file = file_get_contents($url);
+if(!$file) {
+	$this->reply('No such PHP function that I am aware of.');
+} else {
+	$versions = "";
+	$cmd = "";
+	$desc = "";
+	
+	$text = preg_replace("#[\n\r]#", '', $file);
+	if(preg_match("#\(PHP .*?\)#", $text, $matches)) {
+		$versions = html_entity_decode($matches[0]);
+		$versions = str_replace("&#62;", '>', $versions);
+	}
+
+	
+	if(preg_match("#methodsynopsis.*?\">(.*?)</div>#", $text, $matches)) {
+		$cmd = trim($matches[1]);
+		$cmd = strip_tags($cmd);
+		$cmd = preg_replace("# +#", ' ', $cmd);
+	}
+
+
+	if(preg_match("#<p class=\"refpurpose.*?>(.*?)</p>#", $text, $matches)) {
+		$desc = trim($matches[1]);
+		$desc = str_replace(array('&#039;', '&mdash;'), array("'", '-'), $desc);
+		$desc = strip_tags($desc);
+		$desc = preg_replace("# +#", ' ', $desc);
+	}
+
+	if($cmd && $desc) {
+		$url = "http://php.net/{$urlname}";
+		$output = $cmd.' - '.$desc.' - '.$url.' '.$versions;
+		$output = $cmd."\n".$desc."\n".$versions.' - '.$url;
+	} else {
+		$output = "Unable to find any info on command [$cmd].  It's possible that php.net changed their markup again";
+	}
+	$this->reply($output);
+		
+}
+]]>
+		</php>
+	</triggers>
+</ebot_module>

@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ebot_module>
+	<info name='Google' author='Thom Michelbrink' version='1.0'></info>
+	<svn><![CDATA[ $Id: google_mod.xml 22 2010-11-29 00:34:03Z tmichelbrink $ ]]></svn>
+	<triggers>
+		<google>
+<![CDATA[
+$search = $this->message->params;
+if(!$search) {
+	$this->reply("Search string invalid");
+	return;
+}
+$url = 'http://ajax.googleapis.com/ajax/services/search/web?v=1.0&q='.rawurlencode($search);
+
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, $url);
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+curl_setopt($ch, CURLOPT_REFERER, "http://www.magroid.com/");
+$body = curl_exec($ch);
+curl_close($ch);
+
+// now, process the JSON string
+$json = json_decode($body);
+if(isset($json->responseData->results[0])) {
+	$result = $json->responseData->results[0];
+	$this->reply($result->titleNoFormatting.' [ '.trim($result->unescapedUrl).' ]');
+} else {
+	if(isset($json->responseData->cursor->moreResultsUrl)) {
+		$this->reply('No result found, maybe try: '.$json->responseData->cursor->moreResultsUrl);
+	} else {
+		$this->reply('No result found');
+	}
+}
+]]>
+		</google>
+	</triggers>
+</ebot_module>

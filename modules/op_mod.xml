@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ebot_module>
+	<info name='Op' author='Thom Michelbrink' version='1.0'></info>
+	<descr>Perform channel 'OP' commands</descr>
+	<svn><![CDATA[ $Id: op_mod.xml 22 2010-11-29 00:34:03Z tmichelbrink $ ]]></svn>
+	<triggers>
+		<_op>
+<![CDATA[
+$nick = $this->message->parm[0];
+$channel = $this->message->parm[1];
+$force = (clean($this->message->parm, 2) == 'force'); 			
+$var = 'op_'.$nick.'_'.$channel;
+if($force || $this->config->$var) {
+	$this->send('OP #'.$channel.' '.$nick, ebotServer::MSGTYPE_PRIVMSG, 'chanserv');
+}
+]]>
+		</_op>
+
+	</triggers>
+</ebot_module>

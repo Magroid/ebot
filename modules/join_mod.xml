@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ebot_module>
+	<info name='join' author='Thom Michelbrink' version='1.0'></info>
+	<descr>Perform actions on channel members on join</descr>
+	<svn><![CDATA[ $Id: join_mod.xml 22 2010-11-29 00:34:03Z tmichelbrink $ ]]></svn>
+	<triggers>
+		<alllines>
+<![CDATA[
+if($this->message->command == 'JOIN') {
+	$cmd = "WHOIS {$this->message->nick}";
+	$this->console($cmd, 'module');
+	$this->send($cmd, EbotServer::MSGTYPE_CMD);
+	unset($cmd);
+}
+if($this->message->cmdnum == 330) {
+	$tmp = explode(' ', trim($this->message->info));
+	$nick = strtolower($tmp[0]);
+	$this->addMessage('_op', $nick.' '.$this->message->channel);
+	unset($nick);
+	unset($tmp);
+}	
+]]>
+		</alllines>
+		
+	</triggers>
+</ebot_module>

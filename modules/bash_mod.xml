@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ebot_module>
+	<info name='Bash' author='Thom Michelbrink' version='1.0'></info>
+	<svn><![CDATA[ $Id: bash_mod.xml 22 2010-11-29 00:34:03Z tmichelbrink $ ]]></svn>
+	<triggers>
+		<bash>
+<![CDATA[
+$url = "http://bash.org/?random";
+$start_html = "<p class=\"qt\">";
+$end_html = "<\/p>";
+if($result = $this->getHtml($url, $start_html, $end_html))
+{
+	$ret = "---------------- Random quote from bash.org -----------------\n";
+	$tmp = explode("\n", $result[1]);
+	while(list($key, $val) = each($tmp))
+	{
+		$val = strip_tags($val);
+		$val = str_replace(array("&gt;", "&lt;", "&quot;", "&amp;", "&nbsp;"), array(">", "<", "\"", "&", " "), $val);
+		$ret .= $val."\n";
+	}
+	$ret .= "---------------------------------------------------------------------\n";
+}
+else
+{
+	$ret = "Unable to parse bash.org";
+}
+$this->reply($ret);
+]]>
+		</bash>
+		<qdb>
+<![CDATA[
+$url = "http://qdb.us/random";
+$raw = file_get_contents($url);
+$raw = preg_replace("#[\n\r]#", ' ', $raw);
+$ret = "Unable to parse qdb.us";
+if(preg_match("#<table width=.*?</table>#", $raw, $matches))
+{
+	if(preg_match_all("#<p.*?</p>#", $matches[0], $matches))
+	{
+		$rnd = rand(0, 10);
+//		print_r($matches);
+		$txt = $matches[0][$rnd];
+		$txt = str_replace("<br />", "\n", $txt);
+		$txt = str_replace("\r", "", $txt);
+//		$txt = strip_tags($txt);
+		$txt = html_entity_decode(strip_tags($txt));
+		$txt = str_replace("\s +[\n\r]+\s +", "\n", $txt);
+		$ret = "---------------- Random quote from qdb.us -----------------\n";
+		$ret .= $txt."\n";
+		$ret .= "----------------------------------------------------------\n";		
+		
+	}
+}
+$this->reply($ret);
+]]>
+		</qdb>
+	</triggers>
+</ebot_module>

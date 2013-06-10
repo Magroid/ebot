@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ebot_module>
+	<info name='Karma' author='Thom Michelbrink' version='1.0'></info>
+	<descr>Tracks Karma</descr>
+	<svn><![CDATA[ $Id: karma_mod.xml 25 2010-12-04 15:54:54Z tmichelbrink $ ]]></svn>
+	<triggers>
+		<alllines>
+<![CDATA[
+$tmp = array();
+$nicks = array();
+if(preg_match("#^(([\w\.]+)(\+\+|--))\s*(.*?)$#", $this->message->contents, $matches)) {
+	print_r($matches);
+	$who = $matches[2];
+	$type = ($matches[3] == '++' ? 1 : '-1');
+	$reason = trim($matches[4]);
+	$tmp[] = array($who, $reason, $type);
+} else {
+	if(preg_match_all("#\s(([\w\.]+)(\+\+|--))(\s|$)#", $this->message->contents, $matches)) {
+		if(isset($matches[2]) && is_array($matches[2])) {
+			foreach($matches[2] as $k => $who) {
+				$type = ($matches[3][$k] == '++' ? 1 : '-1');
+				$tmp[] = array($who, '', $type);
+			}
+		}
+	}
+}
+foreach($tmp as $k) {
+	$allowed = true;
+	if(isset($this->constant['karma'])) {
+		$_key = strtolower($k[0].'_'.$this->message->nick);
+		$lastUpdate = clean($this->constant['karma'], $_key);
+		$timeout = (int)$this->config->karma_timeout;
+		echo "timeout = $timeout\n";
+		if(time() - $lastUpdate < $timeout) {
+			$this->reply($this->message->nick.": You are not allowed to modify {$k[0]} yet.");
+			$allowed = false;
+		}
+	}
+	if($allowed) { 
+		$this->dataInsert('karma', $k[0], $k[1], $k[2]);
+		$nicks[$k[0]] = 1;
+		$this->constant['karma'][$_key] = time();
+	}
+}
+unset($tmp);
+foreach(array_keys($nicks) as $k) {
+	$this->addMessage('karma', $k, "karma {$k}");
+	sleep(1);
+}
+unset($nicks);
+unset($k);
+unset($lastUpdate);
+]]>
+		</alllines>
+
+		<karma>
+<![CDATA[
+$_who = $this->db->quote($this->message->params);
+$qry = "SELECT SUM(data_int) AS total_karma FROM `data` WHERE data_text = $_who";  
+$rec = $this->db->getRecord($qry);
+$karmaLevel = (isset($rec['total_karma']) ? $rec['total_karma'] : 0);
+$this->reply($this->message->params.' has a karma level of: '.$karmaLevel);
+]]>
+		</karma>			
+
+		<karma_timeout>
+<![CDATA[
+if(count($this->message->parm) > 0) {
+	if($this->checkPriv('admin')) {
+		$this->setConfig('karma_timeout', (int)$this->message->parm[0]);
+	}
+} else {
+	$this->reply("karma_timeout currently set at: {$this->config->karma_timeout} seconds.");
+}
+]]>
+		</karma_timeout>			
+
+	</triggers>
+</ebot_module>

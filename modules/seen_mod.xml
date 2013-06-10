@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ebot_module>
+	<info name='seen' author='rgk' version='1.1'></info>
+	<descr>Retrives last seen data.</descr>
+	<svn><![CDATA[ $Id: seen_mod.xml 36 2011-02-03 00:50:43Z rgk25 $ ]]></svn>
+	<triggers>
+
+        <alllines>
+<![CDATA[
+$type = 'seen';
+$nick = $this->message->nick;
+$channel = $this->message->channel;
+$hostmask = $this->message->hostmask;
+$contents = $this->message->contents;
+$datestamp = time();
+$select = $this->db->prepare('SELECT `data_id`, `data_nick`, `data_datestamp` FROM `data` WHERE `data_type` = :type AND `data_nick` = :nick AND `data_channel` = :channel');
+$select->bindParam('type', $type);
+$select->bindParam('nick', $nick);
+$select->bindParam('channel', $channel);
+$select->execute();
+if ($result = $select->fetch(PDO::FETCH_ASSOC)) {
+    $update = $this->db->prepare('UPDATE `data` SET `data_datestamp` = :datestamp, `data_hostmask` = :hostmask, `data_text` = :text WHERE `data_id` = :id');
+    $update->bindParam(':datestamp', $datestamp);
+    $update->bindParam(':hostmask', $hostmask);
+    $update->bindParam(':text', $contents);
+    $update->bindParam(':id', $result['data_id']);
+    $update->execute();
+} else {
+    $insert = $this->db->prepare('INSERT INTO `data` (`data_type`, `data_nick`, `data_hostmask`, `data_channel`, `data_datestamp`, `data_text`) VALUES (:type, :nick, :hostmask, :channel, :datestamp, :text)');
+    $insert->bindParam(':type', $type);
+    $insert->bindParam(':nick', $nick);
+    $insert->bindParam(':hostmask', $hostmask);
+    $insert->bindParam(':channel', $channel);
+    $insert->bindParam(':datestamp', $datestamp);
+    $insert->bindParam(':text', $contents);
+    $insert->execute();
+}
+]]>
+        </alllines>
+
+		<seen>
+<![CDATA[
+$type = 'seen';
+$channel = $this->message->channel;
+
+if ($this->inClass('admin', $this->message->nick) && $this->message->params[0] == '-hm' || $this->message->params[0] == '--hostmask') {
+    $target = trim($this->message->params[1]);
+    $flag = ', `data_hostmask`';
+} else {
+    $target = trim($this->message->params);
+    $flag = '';
+}
+
+if($target == '') { return; }
+
+$select = $this->db->prepare('SELECT `data_nick`, `data_datestamp`, `data_text`' . $flag . ' FROM `data` WHERE `data_type` = :type AND `data_nick` = :nick AND `data_channel` = :channel');
+$select->bindParam(':type', $type);
+$select->bindParam(':nick', $target);
+$select->bindParam(':channel', $channel);
+$select->execute();
+if ($result = $select->fetch(PDO::FETCH_ASSOC)) {
+    $this->reply($result['data_nick'] . ' was last seen ' . $this->format_time(time() - $result['data_datestamp']) . ' ago saying "' . $result['data_text'] . '"');
+    if (isset($result['data_hostmask'])) {
+        $this->reply('hostname: ' . $result['data_hostname']);
+    }
+} else {
+    $this->reply('Who?');
+}
+]]>
+		</seen>
+
+	</triggers>
+</ebot_module>

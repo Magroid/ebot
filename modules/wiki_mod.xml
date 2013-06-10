@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ebot_module>
+	<info name='Wiki' author='Thom Michelbrink' version='1.0'></info>
+	<descr>Perform search on e107 wiki</descr>
+	<svn><![CDATA[ $Id: wiki_mod.xml 22 2010-11-29 00:34:03Z tmichelbrink $ ]]></svn>
+	<triggers>
+		<wiki>
+<![CDATA[
+$search = $this->message->params.' +inurl:wiki.e107.org';
+$this->addMessage('google', $search, "google {$search}");
+]]>
+		</wiki>
+
+	</triggers>
+</ebot_module>

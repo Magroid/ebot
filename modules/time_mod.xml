@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ebot_module>
+	<info name='time' author='Thom Michelbrink' version='1.0'></info>
+	<descr>Shows date, time, mod uptime</descr>
+	<svn><![CDATA[ $Id: time_mod.xml 34 2011-02-01 14:04:30Z tmichelbrink $ ]]></svn>
+	<triggers>
+		<time>
+<![CDATA[
+$tz = trim($this->message->params);
+if($tz) {
+	if(!$tzname = timezone_name_from_abbr($tz)) {
+		$tzname = $tz;
+	}
+	if(!date_default_timezone_set($tzname)) {
+		$this->reply('Unknown Time Zone: '.$tz);
+		return;
+	}
+	if($zone = new DateTimeZone($tz)) {
+		$dt_tz = new DateTime('now', $zone);
+		$offset = $zone->getOffset($dt_tz);
+		$utc_str = gmdate('M d Y H:i:s', time());
+		$utc = strtotime($utc_str);
+		$timestamp = $utc + $offset;
+		$this->reply("Time right now is ".date("H:i:s", $timestamp)." on ".date("l j M Y", $timestamp)." {$tz} ({$tzname})");
+	} else {
+		$this->reply('Unknown Time Zone: '.$tz);
+	}
+} else {
+	$day = (int)date('z') + 1;
+	$this->reply("My time right now is ".gmdate("H:i:s")." on ".gmdate("l j M Y T"). ". Today is day {$day} of the year.");
+}
+]]>
+		</time>
+
+
+		<uptime>
+<![CDATA[
+$str = $this->format_time(time() - $this->startTime);
+$qry = "SELECT data_generic1 FROM data WHERE data_type='record_uptime'";
+if($row = $this->db->getRecord($qry)) {
+	$best = $this->format_time($row['data_generic1']);
+	$this->reply("I have been online for ".trim($str)." (best is ".trim($best).").");
+} else {
+	$this->reply('I have been online for '.trim($str));
+}
+
+]]>
+		</uptime>
+
+
+		<xmas>
+<![CDATA[
+$now = time();
+$xmas = strtotime("25 December");
+if($xmas < $now) {
+	$xmas = strtotime("25 December + 1 year");
+}
+$days_until = floor(($xmas - $now) / 86400);
+if($days_until == 0) {
+	$this->reply("Today is xmas!!");
+} else {
+	$this->reply("There are $days_until days until Christmas.");
+}
+]]>
+		</xmas>
+	</triggers>
+</ebot_module>

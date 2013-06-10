@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ebot_module>
+	<info name='alice' author='Steve Dunstan' version='1.0'></info>
+	<descr>Alice/AIML module</descr>
+	<svn><![CDATA[ $Id: alice_mod.xml 21 2010-11-26 22:34:01Z tmichelbrink $ ]]></svn>
+	<triggers>
+		<botnick>
+<![CDATA[
+if(!$this->config->pandorabots_id) {
+	$this->reply("Alice module not properly configured - missing pandorabots_id");
+	return true;
+}
+$host = 'www.pandorabots.com';
+$method = 'POST';
+$path = "/pandora/talk?botid={$this->config->pandorabots_id}";
+$data = 'input='.$this->message->contents;
+$buf = '';
+
+$fp = fsockopen($host, 80);
+fputs($fp, "$method $path HTTP/1.1\r\n");
+fputs($fp, "Host: $host\r\n");
+fputs($fp, "Content-type: application/x-www-form-urlencoded\r\n");
+fputs($fp, "Content-length: " . strlen($data) . "\r\n");
+fputs($fp, "Connection: close\r\n\r\n");
+fputs($fp, $data);
+while (!feof($fp)) {
+	$buf .= fgets($fp, 128);
+}
+fclose($fp);
+$val = "<I>Alice<\/I>: ";
+$end_html = "\n";
+preg_match("/".$val."(.*?)".$end_html."/si", $buf, $result);
+$alicesays = str_replace('ALICE', $this->config->botnick, $result[1]);
+$alicesays = str_replace(array('apoc-ra', 'apocratus'), 'jalist', $alicesays);
+$alicesays = str_replace('java', "PHP/mySQL", $alicesays);
+$alicesays = str_replace('<br>', "\n", $alicesays);
+if(!$alicesays){ $alicesays = "I have nothing to say"; }
+$alicesays = preg_replace("# +#", " ", $alicesays);
+$this->reply(trim($alicesays));
+]]>
+		</botnick>
+	</triggers>
+</ebot_module>

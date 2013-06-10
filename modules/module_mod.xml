@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ebot_module>
+	<info name='module' author='Thom Michelbrink' version='1.0'></info>
+	<descr>Administration of modules</descr>
+	<svn><![CDATA[ $Id: module_mod.xml 22 2010-11-29 00:34:03Z tmichelbrink $ ]]></svn>
+	<triggers>
+		<module>
+<![CDATA[
+print_r($this->message);
+if(isset($this->message->parm[0])) {
+	$parm = $this->message->parm;
+	$cmd = array_shift($parm);
+	$parms = implode(' ', $parm);
+	switch($cmd) {
+		case 'info':
+			$trigger = '_module_'.$cmd;
+			$this->addMessage($trigger, $parms, $trigger.' '.$parms);
+			break;
+	}
+}
+]]>
+		</module>
+		
+		<_module_info>
+<![CDATA[
+$svnInfo = $this->getModuleInfo($this->message->parm[0], true);
+$info = $this->getModuleInfo($this->message->parm[0]);
+$info['svn_rev'] = $svnInfo['svn_rev'];
+print_r($info);
+//print_r($this->message);			
+]]>
+		</_module_info>
+	</triggers>
+</ebot_module>
