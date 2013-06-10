@@ -24,6 +24,9 @@ if(count($this->message->parm) == 1) {
 		$output = "Oops: ".$json->message;
 	} else {
 		$output = "Issue #{$issue} = ".$json->title."\n".$json->html_url."     ({$json->state})";
+		if(isset($json->assignee->login) && $json->state == 'open') {
+			$output .= "\nCurrently assigned to: {$json->assignee->login}";
+		}
 	}
 	$this->reply($output);
 }
