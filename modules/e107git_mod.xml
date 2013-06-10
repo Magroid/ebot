@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ebot_module>
+	<info name='e107Git' author='Thom Michelbrink' version='1.0'></info>
+	<svn><![CDATA[ $Id: e107git_mod.xml 22 2010-11-29 00:34:03Z tmichelbrink $ ]]></svn>
+	<triggers>
+		<issue>
+<![CDATA[
+if(count($this->message->parm) == 1) {
+	$issue = $this->message->parm[0];
+	$url = "https://api.github.com/repos/e107inc/e107/issues/".(int)$issue;
+
+	$ch = curl_init();
+	curl_setopt($ch, CURLOPT_URL, $url);
+	curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+	curl_setopt($ch,CURLOPT_CONNECTTIMEOUT,2);
+	curl_setopt($ch, CURLOPT_USERAGENT, 'ebot/2.0 (+https://github.com/Magroid/ebot)'); 	
+	curl_setopt($ch, CURLOPT_REFERER, "http://www.magroid.com/");
+	$content = curl_exec($ch);
+	curl_close($ch);
+
+	// now, process the JSON string
+	$json = json_decode($content);
+	if(isset($json->message)) {
+		$output = "Oops: ".$json->message;
+	} else {
+		$output = "Issue #{$issue} = ".$json->title."\n".$json->html_url."     ({$json->state})";
+	}
+	$this->reply($output);
+}
+]]>
+		</issue>
+	</triggers>
+</ebot_module>
